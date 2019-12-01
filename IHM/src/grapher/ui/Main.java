@@ -12,21 +12,28 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Cell;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.ToolBar;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 
 
 public class Main extends Application {
 	public void start(Stage stage) {
+		
 		BorderPane root = new BorderPane();
 		
 		SplitPane splitP = new SplitPane();
@@ -38,16 +45,71 @@ public class Main extends Application {
 		Button remove = new Button("-");
 		
 		ObservableList<String> pl = FXCollections.observableArrayList();
-		
+
 		List<String> l = getParameters().getRaw();
 		for(int i=0; i<l.size(); i++) {
-			pl.add(l.get(i));
+			pl.addAll(l.get(i));
 		}
 
+		class OurCell extends ListCell<String> {
+			private TextField tf = new TextField();
+			private String oldText = "";
+
+			public OurCell() {
+				tf.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+					if (e.getCode() == KeyCode.ESCAPE) {
+						cancelEdit();
+					}
+				});
+				tf.setOnAction(e -> {
+					setText(tf.getText());
+					grapher.removeFunction(oldText);
+					oldText = tf.getText();
+					grapher.addFunction(tf.getText());
+					cancelEdit();
+				});
+			}
+			
+			protected void updateItem(String item, boolean empty) {
+				super.updateItem(item, empty);
+
+				if (empty || item == null) {
+					cancelEdit();
+				} else {
+					String text = item.toString();
+					setText(text);
+				}
+			}
+
+			public void startEdit() {
+				super.startEdit();
+				oldText = getText();
+				setText(null);
+				tf.setText(oldText);
+				setGraphic(tf);
+			}
+
+			public void cancelEdit() {
+				super.cancelEdit();
+				tf.setText("");
+				setText(oldText);
+				setGraphic(null);
+			}
+		}
+		
+		
+		
 		ToolBar toolBar = new ToolBar(add, remove);
 		
 		ListView<String> list = new ListView<String>(pl);
-		list.getSelectionModel().getSelectedItems().addListener(ListListener(grapher,list));;
+		list.setEditable(true);
+		list.getSelectionModel().getSelectedItems().addListener(ListListener(grapher, list));;
+		
+		list.setCellFactory(new Callback<ListView<String>, ListCell<String>>() {
+            public ListCell<String> call(ListView<String> list) {
+                return new OurCell();
+            }
+        });
 		
 		borderP.setCenter(list);
 		borderP.setBottom(toolBar);
@@ -65,19 +127,19 @@ public class Main extends Application {
 		Menu expression = new Menu("Expression");
 		
 		MenuItem ajouter = new MenuItem("Ajouter");
-		MenuItem edit = new MenuItem("Edit");
+//		MenuItem edit = new MenuItem("Edit");
 		MenuItem supprimer = new MenuItem("Supprimer");
 		
 		ajouter.setOnAction(createEventHandlerP(grapher, pl));
-		edit.setOnAction(createEventHandlerE(grapher, pl, list));
+//		edit.setOnAction(createEventHandlerE(grapher, pl, list));
 		supprimer.setOnAction(createEventHandlerM(grapher, pl, list));
 
-		expression.getItems().addAll(ajouter, edit, supprimer);
+		expression.getItems().addAll(ajouter, supprimer);
 
 		menuB.getMenus().addAll(expression);
 	
 		ajouter.setAccelerator(KeyCombination.keyCombination("Ctrl+N"));
-		edit.setAccelerator(KeyCombination.keyCombination("Ctrl+E"));
+//		edit.setAccelerator(KeyCombination.keyCombination("Ctrl+E"));
 		supprimer.setAccelerator(KeyCombination.keyCombination("Ctrl+Backspace"));		
 		
 		root.setTop(menuB);
@@ -85,17 +147,6 @@ public class Main extends Application {
 		stage.setTitle("grapher");
 		stage.setScene(new Scene(root));
 		stage.show();
-	}
-	
-	private EventHandler<ActionEvent> createEventHandlerE(GrapherCanvas grapher, ObservableList<String> pl,
-			ListView<String> list) {
-		EventHandler<ActionEvent> handler = new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent e) {
-				list.getSelectionModel().getSelectedItem().replace(target, replacement);
-			}
-		};
-		return handler;
 	}
 
 	private ListChangeListener<String> ListListener(GrapherCanvas grapher,ListView<String> l) {
