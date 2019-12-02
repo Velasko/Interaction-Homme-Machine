@@ -66,6 +66,7 @@ public class Main extends Application {
 					grapher.removeFunction(oldText);
 					oldText = tf.getText();
 					grapher.addFunction(tf.getText());
+					commitEdit(tf.getText());
 					cancelEdit();
 				});
 			}
